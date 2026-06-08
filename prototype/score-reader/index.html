@@ -4,8 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#1a1a1a">
-  <title>REXX 点数読み取りテスト v0.1</title>
-  <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
+  <title>REXX 点数読み取りテスト v0.2</title>
+  <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"
+          integrity="sha384-1zP4ZOtlk2FXAOiUArpMuWf7INJJKe/ROfYFAVSeUa11DEfXdKWGiPI3dVma2Gt0"
+          crossorigin="anonymous"></script>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -27,6 +29,15 @@
       margin: 4px 0 12px;
       color: #ccc;
     }
+    h2 {
+      font-size: 14px;
+      color: #888;
+      margin: 16px 0 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #333;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
     .video-wrapper {
       position: relative;
       width: 100%;
@@ -46,22 +57,30 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 60%;
-      height: 25%;
       border: 2px solid #4a9eff;
       border-radius: 6px;
       pointer-events: none;
       box-shadow: 0 0 0 9999px rgba(0,0,0,0.3);
+      transition: width 0.2s, height 0.2s;
     }
+    .guide-S { width: 50%; height: 20%; }
+    .guide-M { width: 70%; height: 30%; }
+    .guide-L { width: 90%; height: 45%; }
     .controls {
       margin-top: 12px;
-      display: flex;
+      display: grid;
+      grid-template-columns: 2fr 1fr;
       gap: 8px;
     }
+    .controls-row2 {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
     button {
-      flex: 1;
-      padding: 14px;
-      font-size: 16px;
+      padding: 14px 8px;
+      font-size: 15px;
       border: none;
       border-radius: 8px;
       background: #4a9eff;
@@ -70,12 +89,27 @@
       cursor: pointer;
       transition: opacity 0.15s;
     }
-    button.secondary {
-      background: #444;
-    }
+    button.secondary { background: #444; }
+    button.danger { background: #c44; }
     button:disabled {
       opacity: 0.4;
       cursor: not-allowed;
+    }
+    button.small {
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+    label {
+      font-size: 13px;
+      color: #aaa;
+    }
+    select {
+      padding: 8px;
+      font-size: 14px;
+      background: #2a2a2a;
+      color: white;
+      border: 1px solid #444;
+      border-radius: 6px;
     }
     .result {
       margin-top: 12px;
@@ -112,6 +146,9 @@
       text-align: center;
       min-height: 1.4em;
     }
+    .status.ok { color: #4ade80; }
+    .status.warn { color: #fbbf24; }
+    .status.error { color: #ff6b6b; }
     .preview {
       margin-top: 12px;
       padding: 12px;
@@ -123,27 +160,110 @@
       border-radius: 6px;
       margin-top: 8px;
     }
-    .error {
-      color: #ff6b6b;
+    .preview-actions {
+      margin-top: 8px;
+      display: flex;
+      gap: 8px;
     }
-    .ok {
-      color: #4ade80;
+    .ocr-detail {
+      margin-top: 8px;
+      padding: 8px;
+      background: #1a1a1a;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: monospace;
+      color: #aaa;
+      white-space: pre-wrap;
+      word-break: break-all;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .history {
+      margin-top: 16px;
+    }
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .history-count {
+      font-size: 12px;
+      color: #888;
+    }
+    .history-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .history-item {
+      display: grid;
+      grid-template-columns: 80px 1fr auto;
+      gap: 10px;
+      padding: 8px;
+      background: #2a2a2a;
+      border-radius: 6px;
+      align-items: center;
+    }
+    .history-item img {
+      width: 80px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 4px;
+      background: #000;
+    }
+    .history-info {
+      font-size: 12px;
+      color: #ccc;
+    }
+    .history-info .time {
+      color: #888;
+      font-size: 10px;
+    }
+    .history-info .text {
+      font-size: 18px;
+      font-weight: bold;
+      color: #4a9eff;
+      font-family: monospace;
+      margin: 2px 0;
+    }
+    .history-info .conf {
+      font-size: 11px;
+    }
+    .empty-history {
+      text-align: center;
+      color: #666;
+      padding: 20px;
+      font-size: 13px;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>REXX 点数読み取りテスト v0.1</h1>
+    <h1>REXX 点数読み取りテスト v0.2</h1>
 
     <div class="video-wrapper">
       <video id="video" autoplay playsinline muted></video>
-      <div class="guide-overlay" id="guide"></div>
+      <div class="guide-overlay guide-M" id="guide"></div>
       <canvas id="captureCanvas"></canvas>
     </div>
 
     <div class="controls">
       <button id="captureBtn" disabled>撮影して読み取る</button>
       <button id="switchBtn" class="secondary">カメラ切替</button>
+    </div>
+
+    <div class="controls-row2">
+      <label for="guideSize">枠サイズ:</label>
+      <select id="guideSize">
+        <option value="S">S (小)</option>
+        <option value="M" selected>M (中)</option>
+        <option value="L">L (大)</option>
+      </select>
     </div>
 
     <div class="result">
@@ -154,8 +274,26 @@
     </div>
 
     <div class="preview" id="previewWrapper" style="display:none">
-      <div class="result-label">撮影画像（デバッグ用）</div>
+      <div class="result-label">最後の撮影画像（OCRに送られたもの）</div>
       <img id="preview" alt="capture" />
+      <div class="preview-actions">
+        <button class="secondary small" id="downloadBtn">画像をダウンロード</button>
+      </div>
+      <div class="ocr-detail" id="ocrDetail"></div>
+    </div>
+
+    <div class="history">
+      <h2>撮影履歴</h2>
+      <div class="history-header">
+        <span class="history-count" id="historyCount">0件</span>
+        <div class="history-actions">
+          <button class="secondary small" id="exportBtn">ログ全体をエクスポート</button>
+          <button class="danger small" id="clearBtn">クリア</button>
+        </div>
+      </div>
+      <div class="history-list" id="historyList">
+        <div class="empty-history">まだ撮影履歴はありません</div>
+      </div>
     </div>
   </div>
 
@@ -164,22 +302,39 @@
     const captureCanvas = document.getElementById('captureCanvas');
     const captureBtn = document.getElementById('captureBtn');
     const switchBtn = document.getElementById('switchBtn');
+    const guideSize = document.getElementById('guideSize');
+    const guide = document.getElementById('guide');
     const resultValue = document.getElementById('resultValue');
     const resultConverted = document.getElementById('resultConverted');
     const statusEl = document.getElementById('status');
-    const guide = document.getElementById('guide');
     const preview = document.getElementById('preview');
     const previewWrapper = document.getElementById('previewWrapper');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const ocrDetail = document.getElementById('ocrDetail');
+    const historyList = document.getElementById('historyList');
+    const historyCount = document.getElementById('historyCount');
+    const exportBtn = document.getElementById('exportBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    const STORAGE_KEY = 'score-reader-history-v1';
+    const MAX_HISTORY = 10;
 
     let stream = null;
     let worker = null;
     let useFrontCamera = false;
+    let lastCaptureDataUrl = null;
+    let lastCaptureTimestamp = null;
+
+    // ガイドサイズの定数（画面比率に対する割合）
+    const GUIDE_SIZES = {
+      S: { w: 0.5,  h: 0.2  },
+      M: { w: 0.7,  h: 0.3  },
+      L: { w: 0.9,  h: 0.45 }
+    };
 
     // カメラ起動
     async function startCamera() {
-      if (stream) {
-        stream.getTracks().forEach(t => t.stop());
-      }
+      if (stream) stream.getTracks().forEach(t => t.stop());
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -190,76 +345,77 @@
           audio: false
         });
         video.srcObject = stream;
-        statusEl.textContent = 'カメラ準備完了。点数表示を青枠に入れて撮影してください。';
-        statusEl.className = 'status';
+        setStatus('カメラ準備完了。点数表示を青枠に入れて撮影してください。', '');
         return true;
       } catch (err) {
-        statusEl.textContent = 'カメラ起動失敗: ' + err.message;
-        statusEl.className = 'status error';
+        setStatus('カメラ起動失敗: ' + err.message, 'error');
         console.error(err);
         return false;
       }
     }
 
-    // OCRエンジン初期化
+    // OCR初期化
     async function initOCR() {
-      statusEl.textContent = 'OCRエンジン読み込み中...';
+      setStatus('OCRエンジン読み込み中...', '');
       try {
         worker = await Tesseract.createWorker('eng');
         await worker.setParameters({
           tessedit_char_whitelist: '0123456789-',
-          tessedit_pageseg_mode: '7'  // 1行とみなす
+          tessedit_pageseg_mode: '7'
         });
         captureBtn.disabled = false;
-        statusEl.textContent = '準備完了。点数表示を青枠に入れて撮影してください。';
+        setStatus('準備完了。青枠に点数表示を入れて撮影してください。', '');
       } catch (err) {
-        statusEl.textContent = 'OCRエンジン読み込み失敗: ' + err.message;
-        statusEl.className = 'status error';
+        setStatus('OCRエンジン読み込み失敗: ' + err.message, 'error');
         console.error(err);
       }
     }
 
-    // ガイド枠の領域だけを切り出す
+    function setStatus(text, type) {
+      statusEl.textContent = text;
+      statusEl.className = 'status' + (type ? ' ' + type : '');
+    }
+
+    // ガイドサイズに合わせて切り出し
     function cropToGuide() {
+      const size = GUIDE_SIZES[guideSize.value];
       const vw = video.videoWidth;
       const vh = video.videoHeight;
-
-      // ガイド枠と同じ比率で中央60%×25%を切り出し
-      const cropW = vw * 0.6;
-      const cropH = vh * 0.25;
+      const cropW = vw * size.w;
+      const cropH = vh * size.h;
       const cropX = (vw - cropW) / 2;
       const cropY = (vh - cropH) / 2;
-
-      captureCanvas.width = cropW;
+      captureCanvas.width  = cropW;
       captureCanvas.height = cropH;
-      const ctx = captureCanvas.getContext('2d');
-      ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+      captureCanvas.getContext('2d').drawImage(
+        video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH
+      );
       return captureCanvas;
     }
 
-    // 撮影 + OCR
+    // 撮影 + OCR + 履歴保存
     async function captureAndRecognize() {
       if (!worker) return;
       captureBtn.disabled = true;
-      statusEl.textContent = '認識中...';
-      statusEl.className = 'status';
+      setStatus('認識中...', '');
       resultValue.textContent = '...';
       resultConverted.textContent = '実点数: --';
+      ocrDetail.textContent = '';
 
       const canvas = cropToGuide();
+      lastCaptureDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      lastCaptureTimestamp = new Date().toISOString();
 
-      // プレビュー表示
-      preview.src = canvas.toDataURL('image/png');
+      preview.src = lastCaptureDataUrl;
       previewWrapper.style.display = 'block';
 
       try {
         const { data } = await worker.recognize(canvas);
         const text = (data.text || '').replace(/\s+/g, '').trim();
-        const confidence = data.confidence ? data.confidence.toFixed(1) : '0';
+        const confidence = data.confidence || 0;
 
-        resultValue.textContent = text || '(認識できず)';
+        resultValue.textContent = text || '(測定不能)';
 
-        // 実点数に変換（×100）
         const num = parseInt(text, 10);
         if (!isNaN(num)) {
           resultConverted.textContent = `実点数: ${(num * 100).toLocaleString()} 点`;
@@ -267,29 +423,169 @@
           resultConverted.textContent = '実点数: 変換不可';
         }
 
-        statusEl.textContent = `信頼度: ${confidence}%`;
-        statusEl.className = parseFloat(confidence) > 60 ? 'status ok' : 'status error';
+        const confType = confidence > 60 ? 'ok' : confidence > 30 ? 'warn' : 'error';
+        setStatus(`信頼度: ${confidence.toFixed(1)}%`, confType);
+
+        // OCR詳細
+        ocrDetail.textContent = formatOCRDetail(data);
+
+        // 履歴に保存
+        saveToHistory({
+          timestamp: lastCaptureTimestamp,
+          imageDataUrl: lastCaptureDataUrl,
+          recognizedText: text,
+          confidence: confidence,
+          realPoints: isNaN(num) ? null : num * 100,
+          guideSize: guideSize.value,
+          words: (data.words || []).map(w => ({
+            text: w.text,
+            confidence: w.confidence,
+            bbox: w.bbox
+          }))
+        });
       } catch (err) {
         resultValue.textContent = 'エラー';
-        statusEl.textContent = err.message;
-        statusEl.className = 'status error';
+        setStatus(err.message, 'error');
         console.error(err);
       } finally {
         captureBtn.disabled = false;
       }
     }
 
-    // カメラ切替
-    async function switchCamera() {
-      useFrontCamera = !useFrontCamera;
-      await startCamera();
+    function formatOCRDetail(data) {
+      const lines = [];
+      lines.push(`Raw text: ${JSON.stringify(data.text)}`);
+      lines.push(`Confidence: ${(data.confidence || 0).toFixed(1)}%`);
+      if (data.words && data.words.length > 0) {
+        lines.push(`Words detected: ${data.words.length}`);
+        data.words.forEach((w, i) => {
+          lines.push(`  [${i}] "${w.text}" (conf: ${(w.confidence || 0).toFixed(1)}%)`);
+        });
+      } else {
+        lines.push('Words detected: 0');
+      }
+      return lines.join('\n');
     }
 
+    // 履歴保存
+    function saveToHistory(entry) {
+      let history = loadHistory();
+      history.unshift(entry);
+      if (history.length > MAX_HISTORY) history = history.slice(0, MAX_HISTORY);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+        renderHistory();
+      } catch (err) {
+        console.warn('履歴の保存に失敗（容量超過の可能性）:', err);
+      }
+    }
+
+    function loadHistory() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (err) {
+        return [];
+      }
+    }
+
+    function clearHistory() {
+      if (!confirm('履歴をすべて削除しますか？')) return;
+      localStorage.removeItem(STORAGE_KEY);
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const history = loadHistory();
+      historyCount.textContent = `${history.length}件`;
+      if (history.length === 0) {
+        historyList.innerHTML = '<div class="empty-history">まだ撮影履歴はありません</div>';
+        return;
+      }
+      historyList.innerHTML = history.map((h, i) => {
+        const time = new Date(h.timestamp).toLocaleString('ja-JP', { hour12: false });
+        const confColor = h.confidence > 60 ? '#4ade80' : h.confidence > 30 ? '#fbbf24' : '#ff6b6b';
+        const text = h.recognizedText || '(測定不能)';
+        const realPts = h.realPoints !== null ? `${h.realPoints.toLocaleString()}点` : '-';
+        return `
+          <div class="history-item">
+            <img src="${h.imageDataUrl}" alt="capture" />
+            <div class="history-info">
+              <div class="time">${time} (${h.guideSize})</div>
+              <div class="text">${text}</div>
+              <div class="conf">実点数: ${realPts} / 信頼度: <span style="color:${confColor}">${h.confidence.toFixed(1)}%</span></div>
+            </div>
+            <button class="secondary small" data-index="${i}">DL</button>
+          </div>
+        `;
+      }).join('');
+
+      // 個別ダウンロードボタン
+      historyList.querySelectorAll('button[data-index]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.dataset.index, 10);
+          const h = history[idx];
+          downloadImage(h.imageDataUrl, `capture_${h.timestamp.replace(/[:.]/g, '-')}.jpg`);
+        });
+      });
+    }
+
+    function downloadImage(dataUrl, filename) {
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function downloadCurrentImage() {
+      if (!lastCaptureDataUrl) return;
+      const filename = `capture_${lastCaptureTimestamp.replace(/[:.]/g, '-')}.jpg`;
+      downloadImage(lastCaptureDataUrl, filename);
+    }
+
+    function exportHistory() {
+      const history = loadHistory();
+      if (history.length === 0) {
+        alert('履歴が空です');
+        return;
+      }
+      const exportData = {
+        exportedAt: new Date().toISOString(),
+        appVersion: 'v0.2',
+        entryCount: history.length,
+        entries: history
+      };
+      const json = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `score-reader-log_${Date.now()}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // ガイドサイズ変更
+    guideSize.addEventListener('change', () => {
+      guide.className = 'guide-overlay guide-' + guideSize.value;
+    });
+
     captureBtn.addEventListener('click', captureAndRecognize);
-    switchBtn.addEventListener('click', switchCamera);
+    switchBtn.addEventListener('click', async () => {
+      useFrontCamera = !useFrontCamera;
+      await startCamera();
+    });
+    downloadBtn.addEventListener('click', downloadCurrentImage);
+    exportBtn.addEventListener('click', exportHistory);
+    clearBtn.addEventListener('click', clearHistory);
 
     // 初期化
     (async () => {
+      renderHistory();
       const ok = await startCamera();
       if (ok) await initOCR();
     })();
