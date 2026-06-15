@@ -63,9 +63,10 @@
       box-shadow: 0 0 0 9999px rgba(0,0,0,0.3);
       transition: width 0.2s, height 0.2s;
     }
-    .guide-S { width: 50%; height: 20%; }
-    .guide-M { width: 70%; height: 30%; }
-    .guide-L { width: 90%; height: 45%; }
+    /* 点数の4桁だけが収まる横長・狭めの枠。JSの GUIDE_SIZES と必ず一致させること。 */
+    .guide-S { width: 40%; height: 22%; }
+    .guide-M { width: 52%; height: 28%; }
+    .guide-L { width: 66%; height: 36%; }
     .controls {
       margin-top: 12px;
       display: grid;
@@ -416,10 +417,12 @@
       { value: '8',  label: 'PSM 8\nsingle word' },
       { value: '13', label: 'PSM 13\nraw line' }
     ];
+    // ガイド枠サイズ（表示枠に対する割合）。
+    // 点数の4桁だけが収まるよう、横長・狭めに設定。CSSの .guide-S/M/L と必ず一致させること。
     const GUIDE_SIZES = {
-      S: { w: 0.5,  h: 0.2  },
-      M: { w: 0.7,  h: 0.3  },
-      L: { w: 0.9,  h: 0.45 }
+      S: { w: 0.40, h: 0.22 },
+      M: { w: 0.52, h: 0.28 },
+      L: { w: 0.66, h: 0.36 }
     };
 
     let stream = null;
@@ -494,8 +497,23 @@
       const size = GUIDE_SIZES[guideSize.value];
       const vw = video.videoWidth;
       const vh = video.videoHeight;
-      const cropW = vw * size.w;
-      const cropH = vh * size.h;
+
+      // object-fit:cover による「画面で見えている範囲」と「生映像」のズレを補正する。
+      // ガイド枠は画面(表示枠)基準で描かれているので、表示枠で実際に見えている
+      // 生映像の割合(visW / visH)を掛けてから切り取らないと、上下(または左右)の
+      // 隠れた部分まで巻き込んでしまう。
+      const rect = video.getBoundingClientRect();
+      const boxRatio = (rect.width && rect.height) ? rect.width / rect.height : vw / vh;
+      const videoRatio = vw / vh;
+      let visW = 1, visH = 1;
+      if (videoRatio > boxRatio) {
+        visW = boxRatio / videoRatio;   // 横長映像 → 左右が隠れている
+      } else {
+        visH = videoRatio / boxRatio;   // 縦長映像 → 上下が隠れている
+      }
+
+      const cropW = vw * size.w * visW;
+      const cropH = vh * size.h * visH;
       const cropX = (vw - cropW) / 2;
       const cropY = (vh - cropH) / 2;
       captureCanvas.width  = cropW;
