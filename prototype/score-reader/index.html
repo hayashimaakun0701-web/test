@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#1a1a1a">
-  <title>REXX 点数読み取りテスト v0.3</title>
+  <title>REXX 点数読み取りテスト v0.3.1</title>
   <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"
           integrity="sha384-1zP4ZOtlk2FXAOiUArpMuWf7INJJKe/ROfYFAVSeUa11DEfXdKWGiPI3dVma2Gt0"
           crossorigin="anonymous"></script>
@@ -298,7 +298,7 @@
 </head>
 <body>
   <div class="container">
-    <h1>REXX 点数読み取りテスト v0.3</h1>
+    <h1>REXX 点数読み取りテスト v0.3.1</h1>
 
     <div class="video-wrapper">
       <video id="video" autoplay playsinline muted></video>
@@ -792,7 +792,7 @@
       if (history.length === 0) { alert('履歴が空です'); return; }
       const exportData = {
         exportedAt: new Date().toISOString(),
-        appVersion: 'v0.3',
+        appVersion: 'v0.3.1',
         entryCount: history.length,
         entries: history
       };
