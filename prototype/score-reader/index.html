@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#1a1a1a">
-  <title>REXX 点数読み取りテスト v0.3.1</title>
+  <title>REXX 点数読み取りテスト v0.3.2</title>
   <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"
           integrity="sha384-1zP4ZOtlk2FXAOiUArpMuWf7INJJKe/ROfYFAVSeUa11DEfXdKWGiPI3dVma2Gt0"
           crossorigin="anonymous"></script>
@@ -298,7 +298,7 @@
 </head>
 <body>
   <div class="container">
-    <h1>REXX 点数読み取りテスト v0.3.1</h1>
+    <h1>REXX 点数読み取りテスト v0.3.2</h1>
 
     <div class="video-wrapper">
       <video id="video" autoplay playsinline muted></video>
@@ -563,6 +563,65 @@
     }
 
     // ============================================================
+    // 「万千百」ラベル行の自動切り落とし（射影プロファイル法）
+    // 二値化後（黒地の数字＝R値0）の画像で、各行の黒画素数を縦に集計し、
+    // 一番背の高い「インクの帯」＝大きい数字とみなして、そこだけを残す。
+    // これで数字の下にある小さな万千百ラベルや矢印を自動で除外する。
+    // 帯が検出できない／画像ほぼ全体を占める場合は元画像をそのまま返す（安全策）。
+    // ============================================================
+    function cropToDigitBand(srcCanvas) {
+      const w = srcCanvas.width;
+      const h = srcCanvas.height;
+      const ctx = srcCanvas.getContext('2d');
+      const data = ctx.getImageData(0, 0, w, h).data;
+
+      // 各行の黒画素（=数字のインク）の数を数える
+      const rowInk = new Array(h).fill(0);
+      for (let y = 0; y < h; y++) {
+        let count = 0;
+        const rowStart = y * w * 4;
+        for (let x = 0; x < w; x++) {
+          if (data[rowStart + x * 4] === 0) count++; // R=0 が黒（インク）
+        }
+        rowInk[y] = count;
+      }
+
+      // 「文字が乗っている行」とみなす閾値（横幅の3%以上にインクがある行）
+      const minInk = Math.max(2, w * 0.03);
+
+      // 連続した「インクあり帯」を列挙
+      const bands = [];
+      let start = -1;
+      for (let y = 0; y < h; y++) {
+        const on = rowInk[y] >= minInk;
+        if (on && start < 0) start = y;
+        if (!on && start >= 0) { bands.push({ start, end: y - 1 }); start = -1; }
+      }
+      if (start >= 0) bands.push({ start, end: h - 1 });
+      if (bands.length === 0) return srcCanvas; // 検出失敗→そのまま
+
+      // 一番背の高い帯＝大きい数字とみなす
+      let best = bands[0];
+      for (const b of bands) {
+        if ((b.end - b.start) > (best.end - best.start)) best = b;
+      }
+
+      const bandH = best.end - best.start + 1;
+      if (bandH >= h * 0.95) return srcCanvas; // ほぼ全体＝切り出す意味なし
+
+      // 数字の上下に少し余白を足す
+      const pad = Math.round(bandH * 0.15);
+      const cropY = Math.max(0, best.start - pad);
+      const cropH = Math.min(h - cropY, bandH + pad * 2);
+
+      const out = document.createElement('canvas');
+      out.width = w;
+      out.height = cropH;
+      out.getContext('2d').drawImage(srcCanvas, 0, cropY, w, cropH, 0, 0, w, cropH);
+      return out;
+    }
+
+    // ============================================================
     // Otsu法による自動閾値算出
     // ============================================================
     function otsuThreshold(data) {
@@ -621,11 +680,25 @@
       return results;
     }
 
-    // 最良結果を選ぶ（信頼度最高 + テキストが空でないもの優先）
+    // 最良結果を選ぶ。
+    // 信頼度が0%に並びがちなので、単純な信頼度比較では先頭(PSM7)に偏ってしまう。
+    // そこで「①複数PSMが同じ答えを出したか（多数決）」「②パネルは必ず4桁なので
+    // 4桁に近い読みほど妥当」「③信頼度」の順に重み付けして選ぶ。
     function pickBest(results) {
-      const nonEmpty = results.filter(r => r.text && r.text.length > 0);
+      const nonEmpty = results.filter(r => r.text && /\d/.test(r.text));
       if (nonEmpty.length === 0) return results[0];
-      return nonEmpty.reduce((a, b) => (a.confidence >= b.confidence ? a : b));
+
+      // 同じ読みが何回出たか（多数決の票数）
+      const votes = {};
+      for (const r of nonEmpty) votes[r.text] = (votes[r.text] || 0) + 1;
+
+      // 桁数が4に近いほど高評価（4桁で0、離れるほどマイナス）
+      const digitScore = (text) => -Math.abs(4 - (text.match(/\d/g) || []).length);
+
+      // スコア: 票数を最優先 → 桁数の妥当性 → 信頼度
+      const score = (r) => votes[r.text] * 100 + digitScore(r.text) * 10 + r.confidence;
+
+      return nonEmpty.reduce((a, b) => (score(a) >= score(b) ? a : b));
     }
 
     // ============================================================
@@ -642,9 +715,10 @@
 
       const original = cropToGuide();
       const processed = preprocessImage(original);
+      const ocrTarget = cropToDigitBand(processed); // ②万千百ラベル行を自動で切り落とす
 
       const originalDataUrl = original.toDataURL('image/jpeg', 0.8);
-      const processedDataUrl = processed.toDataURL('image/jpeg', 0.8);
+      const processedDataUrl = ocrTarget.toDataURL('image/jpeg', 0.8);
       const timestamp = new Date().toISOString();
       lastCapture = { original: originalDataUrl, processed: processedDataUrl, timestamp };
 
@@ -653,7 +727,7 @@
       previewWrapper.style.display = 'block';
 
       try {
-        const results = await recognizeMultiPSM(processed);
+        const results = await recognizeMultiPSM(ocrTarget);
         const best = pickBest(results);
 
         resultValue.textContent = best.text || '(測定不能)';
@@ -792,7 +866,7 @@
       if (history.length === 0) { alert('履歴が空です'); return; }
       const exportData = {
         exportedAt: new Date().toISOString(),
-        appVersion: 'v0.3.1',
+        appVersion: 'v0.3.2',
         entryCount: history.length,
         entries: history
       };
